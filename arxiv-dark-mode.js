@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         arXiv Dark Mode
 // @namespace    https://arxiv.org/
-// @version      0.3.1
+// @version      0.3.2
 // @description  Comprehensive dark theme for arXiv.org with auto, dark, and light modes
 // @author       sm18lr88
 // @match        https://arxiv.org/*
@@ -680,13 +680,13 @@
       if (typeof GM_getValue === "function") {
         return GM_getValue(PREF_KEY, "auto");
       }
-    } catch {
+    } catch (_e) {
       /* ignore */
     }
 
     try {
       return localStorage.getItem(PREF_KEY) || "auto";
-    } catch {
+    } catch (_e) {
       return "auto";
     }
   }
@@ -699,13 +699,13 @@
         GM_setValue(PREF_KEY, mode);
         return;
       }
-    } catch {
+    } catch (_e) {
       /* ignore */
     }
 
     try {
       localStorage.setItem(PREF_KEY, mode);
-    } catch {
+    } catch (_e) {
       /* ignore */
     }
   }
@@ -713,15 +713,15 @@
   function systemPrefersDark() {
     try {
       return window.matchMedia("(prefers-color-scheme: dark)").matches;
-    } catch {
+    } catch (_e) {
       return true;
     }
   }
 
   function resolveEnabled(currentMode) {
-    return currentMode === "auto"
-      ? systemPrefersDark()
-      : currentMode === "dark";
+    return currentMode === "auto" ?
+      systemPrefersDark() :
+      currentMode === "dark";
   }
 
   function bootstrapTheme() {
@@ -839,7 +839,7 @@
   function setupSystemPreferenceListener() {
     try {
       mediaQueryList = window.matchMedia("(prefers-color-scheme: dark)");
-    } catch {
+    } catch (_e) {
       return;
     }
 
@@ -878,7 +878,7 @@
           applyThemeState(resolveEnabled(mode));
         },
       );
-    } catch {
+    } catch (_e) {
       /* ignore */
     }
   }
@@ -899,7 +899,7 @@
         setMode("light");
       });
       GM_registerMenuCommand("Cycle Mode (Alt+Shift+D)", cycleMode);
-    } catch {
+    } catch (_e) {
       /* ignore */
     }
   }
