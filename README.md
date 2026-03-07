@@ -1,0 +1,38 @@
+# arXiv Dark Mode
+
+A Tampermonkey userscript that applies a comprehensive dark theme to arXiv.org.
+
+## Features
+
+- Three modes: **Auto** (follows system preference), **Dark**, and **Light**
+- Covers all major arXiv subdomains: `arxiv.org`, `export.arxiv.org`, `info.arxiv.org`, `html.arxiv.org`, `ar5iv.labs.arxiv.org`
+- Floating toggle button (bottom-right corner) cycles through modes on click
+- Keyboard shortcut: `Alt+Shift+D`
+- Tampermonkey menu commands for direct mode selection
+- Cross-tab sync: changing mode in one tab propagates to others instantly
+- Responds to system dark/light preference changes in real time (Auto mode)
+- Print-safe: reverts to white background when printing
+- No external dependencies
+
+## Installation
+
+1. Install [Tampermonkey](https://www.tampermonkey.net/) for your browser.
+2. Open the [raw script file](../../raw/main/arxiv-dark-mode.js) and Tampermonkey will prompt you to install it.
+
+## Usage
+
+| Action | Result |
+|---|---|
+| Click the toggle button | Cycles: Auto → Dark → Light |
+| `Alt+Shift+D` | Same as clicking the toggle |
+| Tampermonkey menu | Set mode directly (Auto / Dark / Light) |
+
+The selected mode is saved and persists across sessions.
+
+## Compatibility
+
+Tested on Chrome and Firefox with Tampermonkey. Should work with Violentmonkey as well.
+
+## License
+
+MIT

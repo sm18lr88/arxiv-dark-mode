@@ -1,0 +1,11 @@
+# Ignore everything
+*
+
+# Allow only the userscript
+!arxiv-dark-mode.js
+
+# Allow this gitignore
+!.gitignore
+
+# Allow the README
+!README.md
