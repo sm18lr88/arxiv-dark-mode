@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         arXiv Dark Mode
 // @namespace    https://arxiv.org/
-// @version      0.3.3
+// @version      0.3.4
 // @description  Comprehensive dark theme for arXiv.org with auto, dark, and light modes
 // @author       sm18lr88
+// @license      MIT
 // @match        https://arxiv.org/*
 // @match        https://www.arxiv.org/*
 // @match        https://export.arxiv.org/*
@@ -719,9 +720,8 @@
   }
 
   function resolveEnabled(currentMode) {
-    return currentMode === "auto" ?
-      systemPrefersDark() :
-      currentMode === "dark";
+    if (currentMode === "auto") { return systemPrefersDark(); }
+    return currentMode === "dark";
   }
 
   function bootstrapTheme() {
