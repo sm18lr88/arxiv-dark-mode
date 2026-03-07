@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         arXiv Dark Mode
 // @namespace    https://arxiv.org/
-// @version      0.3.2
+// @version      0.3.3
 // @description  Comprehensive dark theme for arXiv.org with auto, dark, and light modes
 // @author       sm18lr88
 // @match        https://arxiv.org/*
@@ -757,7 +757,7 @@
     toggleBtn.textContent = getModeIcon(mode);
     toggleBtn.setAttribute(
       "aria-label",
-      `${label} mode. Click to cycle modes.`,
+      `${label} mode. Click to cycle modes.`
     );
     toggleBtn.title = `${label} mode (Alt+Shift+D). Click to cycle: Auto → Dark → Light`;
   }
@@ -831,8 +831,8 @@
 
     return Boolean(
       target.closest(
-        "[contenteditable='true'], [contenteditable=''], [role='textbox']",
-      ),
+        "[contenteditable='true'], [contenteditable=''], [role='textbox']"
+      )
     );
   }
 
@@ -876,7 +876,7 @@
 
           mode = MODES.includes(newValue) ? newValue : "auto";
           applyThemeState(resolveEnabled(mode));
-        },
+        }
       );
     } catch (_e) {
       /* ignore */
