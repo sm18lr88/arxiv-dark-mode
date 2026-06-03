@@ -2,6 +2,12 @@
 
 A Tampermonkey userscript that applies a comprehensive dark theme to arXiv.org.
 
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/1e328f95-29ef-42fe-87a1-1c8a155c1dec" />
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/b3522651-739b-4f44-bf3d-a7e5ada11092" />
+<img width="800" alt="image" src="https://github.com/user-attachments/assets/246ff652-2ace-4ee6-95ae-a60ab454b712" />
+
+
+
 ## Features
 
 - Three modes: **Auto** (follows system preference), **Dark**, and **Light**
