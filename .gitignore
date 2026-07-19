@@ -2,7 +2,3 @@ node_modules/
 .solidkg/
 .agents/
 .claude/
-
-# Generated userscript artifacts are committed for direct installation.
-!dist/
-!dist/arxiv-dark-mode.js
