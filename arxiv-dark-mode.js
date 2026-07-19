@@ -1,20 +1,30 @@
 // ==UserScript==
 // @name         arXiv Dark Mode
 // @namespace    https://arxiv.org/
-// @version      0.3.4
-// @description  Comprehensive dark theme for arXiv.org with auto, dark, and light modes
+// @version      0.4.0
+// @description  Dark theme and accessible font choices for arXiv.org
 // @author       sm18lr88
 // @license      MIT
+// @homepageURL  https://github.com/sm18lr88/arxiv-dark-mode
+// @supportURL   https://github.com/sm18lr88/arxiv-dark-mode/issues
+// @updateURL    https://raw.githubusercontent.com/sm18lr88/arxiv-dark-mode/master/arxiv-dark-mode.js
+// @downloadURL  https://raw.githubusercontent.com/sm18lr88/arxiv-dark-mode/master/arxiv-dark-mode.js
 // @match        https://arxiv.org/*
 // @match        https://www.arxiv.org/*
 // @match        https://export.arxiv.org/*
-// @match        https://info.arxiv.org/*
+// @match        https://info.arxiv.org/*there
 // @match        https://html.arxiv.org/*
 // @match        https://ar5iv.labs.arxiv.org/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
+// @grant        GM_getResourceURL
+// @resource     openDyslexicRegular https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff
+// @resource     openDyslexicBold https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Bold.woff
+// @resource     openDyslexicItalic https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Italic.woff
+// @resource     openDyslexicBoldItalic https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-BoldItalic.woff
+// @resource     openDyslexicMono https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/otf/OpenDyslexicMono-Regular.otf
 // @run-at       document-start
 // @noframes
 // ==/UserScript==
@@ -22,13 +32,45 @@
   "use strict";
 
   const PREF_KEY = "arxiv_dark_mode";
+  const FONT_PREF_KEY = "arxiv_font";
   const ROOT_CLASS = "arxiv-dm";
   const STYLE_ID = "arxiv-dm-styles";
+  const FONT_STYLE_ID = "arxiv-dm-fonts";
+  const FONT_ATTRIBUTE = "data-arxiv-dm-font";
   const TOGGLE_ID = "arxiv-dm-toggle";
   const MODES = ["auto", "dark", "light"];
+  const FONT_OPTIONS = {
+    site: {
+      label: "Site default",
+      family: null
+    },
+    system: {
+      label: "System sans-serif",
+      family:
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    },
+    serif: {
+      label: "Serif",
+      family: 'Georgia, "Times New Roman", serif'
+    },
+    monospace: {
+      label: "Monospace",
+      family:
+        '"Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace'
+    },
+    opendyslexic: {
+      label: "OpenDyslexic",
+      family: '"OpenDyslexic", sans-serif'
+    },
+    "opendyslexic-mono": {
+      label: "OpenDyslexic Mono",
+      family: '"OpenDyslexic Mono", monospace'
+    }
+  };
   const BG_COLOR = "#1a1a2e";
 
   let mode = getStoredMode();
+  let font = getStoredFont();
   let enabled = resolveEnabled(mode);
   let toggleBtn = null;
   let mediaQueryList = null;
@@ -653,8 +695,12 @@
     }
   `;
 
+  const FONT_CSS = createFontCss();
+
   bootstrapTheme();
+  applyFont(font);
   injectStyle(STYLE_ID, DARK_CSS);
+  injectStyle(FONT_STYLE_ID, FONT_CSS);
   injectStyle(`${STYLE_ID}-toggle`, TOGGLE_CSS);
 
   document.addEventListener("keydown", onKeyDown, true);
@@ -665,39 +711,58 @@
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", createToggleBtn, {
-      once: true,
+      once: true
     });
   } else {
     createToggleBtn();
   }
 
   function getStoredMode() {
-    const stored = readStoredValue();
+    const stored = readStoredValue(PREF_KEY, "auto");
     return MODES.includes(stored) ? stored : "auto";
   }
 
-  function readStoredValue() {
+  function getStoredFont() {
+    const stored = readStoredValue(FONT_PREF_KEY, "site");
+    return isKnownFont(stored) ? stored : "site";
+  }
+
+  function isKnownFont(value) {
+    return Object.prototype.hasOwnProperty.call(FONT_OPTIONS, value);
+  }
+
+  function readStoredValue(key, defaultValue) {
     try {
       if (typeof GM_getValue === "function") {
-        return GM_getValue(PREF_KEY, "auto");
+        return GM_getValue(key, defaultValue);
       }
     } catch (_e) {
       /* ignore */
     }
 
     try {
-      return localStorage.getItem(PREF_KEY) || "auto";
+      return localStorage.getItem(key) || defaultValue;
     } catch (_e) {
-      return "auto";
+      return defaultValue;
     }
   }
 
   function persistMode(nextMode) {
     mode = MODES.includes(nextMode) ? nextMode : "auto";
 
+    persistValue(PREF_KEY, mode);
+  }
+
+  function persistFont(nextFont) {
+    font = isKnownFont(nextFont) ? nextFont : "site";
+
+    persistValue(FONT_PREF_KEY, font);
+  }
+
+  function persistValue(key, value) {
     try {
       if (typeof GM_setValue === "function") {
-        GM_setValue(PREF_KEY, mode);
+        GM_setValue(key, value);
         return;
       }
     } catch (_e) {
@@ -705,7 +770,7 @@
     }
 
     try {
-      localStorage.setItem(PREF_KEY, mode);
+      localStorage.setItem(key, value);
     } catch (_e) {
       /* ignore */
     }
@@ -720,7 +785,7 @@
   }
 
   function resolveEnabled(currentMode) {
-    if (currentMode === "auto") { return systemPrefersDark(); }
+    if (currentMode === "auto") return systemPrefersDark();
     return currentMode === "dark";
   }
 
@@ -739,6 +804,24 @@
   function setMode(nextMode) {
     persistMode(nextMode);
     applyThemeState(resolveEnabled(mode));
+  }
+
+  function setFont(nextFont) {
+    persistFont(nextFont);
+    applyFont(font);
+  }
+
+  function applyFont(nextFont) {
+    const validFont = isKnownFont(nextFont) ? nextFont : "site";
+
+    font = validFont;
+
+    if (validFont === "site") {
+      document.documentElement.removeAttribute(FONT_ATTRIBUTE);
+      return;
+    }
+
+    document.documentElement.setAttribute(FONT_ATTRIBUTE, validFont);
   }
 
   function cycleMode() {
@@ -878,6 +961,17 @@
           applyThemeState(resolveEnabled(mode));
         }
       );
+
+      GM_addValueChangeListener(
+        FONT_PREF_KEY,
+        function (_key, _oldValue, newValue, remote) {
+          if (!remote) {
+            return;
+          }
+
+          applyFont(newValue);
+        }
+      );
     } catch (_e) {
       /* ignore */
     }
@@ -899,9 +993,130 @@
         setMode("light");
       });
       GM_registerMenuCommand("Cycle Mode (Alt+Shift+D)", cycleMode);
+
+      Object.keys(FONT_OPTIONS).forEach(function (fontName) {
+        const option = FONT_OPTIONS[fontName];
+        GM_registerMenuCommand(`Font: ${option.label}`, function () {
+          setFont(fontName);
+        });
+      });
     } catch (_e) {
       /* ignore */
     }
+  }
+
+  function createFontCss() {
+    const fontRules = Object.keys(FONT_OPTIONS)
+      .filter(function (fontName) {
+        return Boolean(FONT_OPTIONS[fontName].family);
+      })
+      .map(function (fontName) {
+        return `html[${FONT_ATTRIBUTE}="${fontName}"] {
+          --arxiv-dm-font-family: ${FONT_OPTIONS[fontName].family};
+        }`;
+      })
+      .join("\n");
+
+    const regularUrl = getResourceUrl(
+      "openDyslexicRegular",
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff"
+    );
+    const boldUrl = getResourceUrl(
+      "openDyslexicBold",
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Bold.woff"
+    );
+    const italicUrl = getResourceUrl(
+      "openDyslexicItalic",
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Italic.woff"
+    );
+    const boldItalicUrl = getResourceUrl(
+      "openDyslexicBoldItalic",
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-BoldItalic.woff"
+    );
+    const monoUrl = getResourceUrl(
+      "openDyslexicMono",
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/otf/OpenDyslexicMono-Regular.otf"
+    );
+
+    return `
+      @font-face {
+        font-family: "OpenDyslexic";
+        src: local("OpenDyslexic"), url("${regularUrl}") format("woff");
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "OpenDyslexic";
+        src: local("OpenDyslexic Bold"), url("${boldUrl}") format("woff");
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "OpenDyslexic";
+        src: local("OpenDyslexic Italic"), url("${italicUrl}") format("woff");
+        font-style: italic;
+        font-weight: 400;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "OpenDyslexic";
+        src: local("OpenDyslexic Bold Italic"), url("${boldItalicUrl}") format("woff");
+        font-style: italic;
+        font-weight: 700;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "OpenDyslexic Mono";
+        src: local("OpenDyslexic Mono"), url("${monoUrl}") format("opentype");
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+      }
+
+      ${fontRules}
+
+      html[${FONT_ATTRIBUTE}] body,
+      html[${FONT_ATTRIBUTE}] button,
+      html[${FONT_ATTRIBUTE}] input,
+      html[${FONT_ATTRIBUTE}] select,
+      html[${FONT_ATTRIBUTE}] textarea,
+      html[${FONT_ATTRIBUTE}] h1,
+      html[${FONT_ATTRIBUTE}] h2,
+      html[${FONT_ATTRIBUTE}] h3,
+      html[${FONT_ATTRIBUTE}] h4,
+      html[${FONT_ATTRIBUTE}] h5,
+      html[${FONT_ATTRIBUTE}] h6,
+      html[${FONT_ATTRIBUTE}] p,
+      html[${FONT_ATTRIBUTE}] li,
+      html[${FONT_ATTRIBUTE}] dt,
+      html[${FONT_ATTRIBUTE}] dd,
+      html[${FONT_ATTRIBUTE}] blockquote,
+      html[${FONT_ATTRIBUTE}] figcaption,
+      html[${FONT_ATTRIBUTE}] label,
+      html[${FONT_ATTRIBUTE}] summary,
+      html[${FONT_ATTRIBUTE}] th,
+      html[${FONT_ATTRIBUTE}] td {
+        font-family: var(--arxiv-dm-font-family) !important;
+      }
+    `;
+  }
+
+  function getResourceUrl(name, fallbackUrl) {
+    try {
+      if (typeof GM_getResourceURL === "function") {
+        return GM_getResourceURL(name);
+      }
+    } catch (_e) {
+      /* ignore */
+    }
+
+    return fallbackUrl;
   }
 
   function injectStyle(id, cssText) {
