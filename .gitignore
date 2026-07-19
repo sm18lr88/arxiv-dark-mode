@@ -1,11 +1,8 @@
-# Ignore everything
-*
+node_modules/
+.solidkg/
+.agents/
+.claude/
 
-# Allow only the userscript
-!arxiv-dark-mode.js
-
-# Allow this gitignore
-!.gitignore
-
-# Allow the README
-!README.md
+# Generated userscript artifacts are committed for direct installation.
+!dist/
+!dist/arxiv-dark-mode.js
