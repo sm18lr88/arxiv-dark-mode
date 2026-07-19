@@ -2,6 +2,8 @@
 
 A Tampermonkey userscript that applies a comprehensive dark theme and readable font preferences to arXiv.org.
 
+The project is TypeScript-first: edit `src/arxiv-dark-mode.ts`, then run `npm run build` to generate the installable `dist/arxiv-dark-mode.js` artifact.
+
 <img width="800" alt="image" src="https://github.com/user-attachments/assets/1e328f95-29ef-42fe-87a1-1c8a155c1dec" />
 <img width="800" alt="image" src="https://github.com/user-attachments/assets/b3522651-739b-4f44-bf3d-a7e5ada11092" />
 <img width="800" alt="image" src="https://github.com/user-attachments/assets/246ff652-2ace-4ee6-95ae-a60ab454b712" />
@@ -24,7 +26,17 @@ A Tampermonkey userscript that applies a comprehensive dark theme and readable f
 ## Installation
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) for your browser.
-2. Open the [raw script file](../../raw/master/arxiv-dark-mode.js) and Tampermonkey will prompt you to install it.
+2. Open the [built userscript](../../raw/master/dist/arxiv-dark-mode.js) and Tampermonkey will prompt you to install it.
+
+## Development
+
+```sh
+npm install
+npm run check
+npm run build
+```
+
+`src/` is authoritative. `dist/arxiv-dark-mode.js` is the canonical release artifact, while the generated root copy remains temporarily for compatibility with existing installations that still check the old update path.
 
 ## Usage
 

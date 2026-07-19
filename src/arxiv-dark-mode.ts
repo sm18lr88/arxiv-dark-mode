@@ -29,60 +29,75 @@
 // @noframes
 // ==/UserScript==
 (function () {
-    "use strict";
-    const PREF_KEY = "arxiv_dark_mode";
-    const FONT_PREF_KEY = "arxiv_font";
-    const ROOT_CLASS = "arxiv-dm";
-    const STYLE_ID = "arxiv-dm-styles";
-    const FONT_STYLE_ID = "arxiv-dm-fonts";
-    const FONT_ATTRIBUTE = "data-arxiv-dm-font";
-    const CONTROLS_ID = "arxiv-dm-controls";
-    const TOGGLE_ID = "arxiv-dm-toggle";
-    const SETTINGS_BUTTON_ID = "arxiv-dm-settings-button";
-    const SETTINGS_PANEL_ID = "arxiv-dm-settings-panel";
-    const MODE_SELECT_ID = "arxiv-dm-mode-select";
-    const FONT_SELECT_ID = "arxiv-dm-font-select";
-    const MODES = ["auto", "dark", "light"];
-    const FONT_OPTIONS = {
-        site: {
-            label: "Site default",
-            family: null
-        },
-        system: {
-            label: "System sans-serif",
-            family: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-        },
-        serif: {
-            label: "Serif",
-            family: 'Georgia, "Times New Roman", serif'
-        },
-        monospace: {
-            label: "Monospace",
-            family: '"Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace'
-        },
-        opendyslexic: {
-            label: "OpenDyslexic",
-            family: '"OpenDyslexic", sans-serif'
-        },
-        "opendyslexic-mono": {
-            label: "OpenDyslexic Mono",
-            family: '"OpenDyslexic Mono", monospace'
-        }
-    };
-    const FONT_NAMES = Object.keys(FONT_OPTIONS);
-    const BG_COLOR = "#1a1a2e";
-    let mode = getStoredMode();
-    let font = getStoredFont();
-    let enabled = resolveEnabled(mode);
-    let toggleBtn = null;
-    let settingsBtn = null;
-    let settingsPanel = null;
-    let modeSelect = null;
-    let fontSelect = null;
-    let fontStatus = null;
-    let controlsObserver = null;
-    let mediaQueryList = null;
-    const DARK_CSS = `
+  "use strict";
+
+  const PREF_KEY = "arxiv_dark_mode";
+  const FONT_PREF_KEY = "arxiv_font";
+  const ROOT_CLASS = "arxiv-dm";
+  const STYLE_ID = "arxiv-dm-styles";
+  const FONT_STYLE_ID = "arxiv-dm-fonts";
+  const FONT_ATTRIBUTE = "data-arxiv-dm-font";
+  const CONTROLS_ID = "arxiv-dm-controls";
+  const TOGGLE_ID = "arxiv-dm-toggle";
+  const SETTINGS_BUTTON_ID = "arxiv-dm-settings-button";
+  const SETTINGS_PANEL_ID = "arxiv-dm-settings-panel";
+  const MODE_SELECT_ID = "arxiv-dm-mode-select";
+  const FONT_SELECT_ID = "arxiv-dm-font-select";
+  const MODES = ["auto", "dark", "light"] as const;
+  type Mode = (typeof MODES)[number];
+  type FontOption = {
+    label: string;
+    family: string | null;
+  };
+  type SelectOptionDefinition = {
+    value: string;
+    label: string;
+  };
+  const FONT_OPTIONS = {
+    site: {
+      label: "Site default",
+      family: null
+    },
+    system: {
+      label: "System sans-serif",
+      family:
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    },
+    serif: {
+      label: "Serif",
+      family: 'Georgia, "Times New Roman", serif'
+    },
+    monospace: {
+      label: "Monospace",
+      family:
+        '"Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace'
+    },
+    opendyslexic: {
+      label: "OpenDyslexic",
+      family: '"OpenDyslexic", sans-serif'
+    },
+    "opendyslexic-mono": {
+      label: "OpenDyslexic Mono",
+      family: '"OpenDyslexic Mono", monospace'
+    }
+  } satisfies Record<string, FontOption>;
+  type FontName = keyof typeof FONT_OPTIONS;
+  const FONT_NAMES = Object.keys(FONT_OPTIONS) as FontName[];
+  const BG_COLOR = "#1a1a2e";
+
+  let mode: Mode = getStoredMode();
+  let font: FontName = getStoredFont();
+  let enabled = resolveEnabled(mode);
+  let toggleBtn: HTMLButtonElement | null = null;
+  let settingsBtn: HTMLButtonElement | null = null;
+  let settingsPanel: HTMLElement | null = null;
+  let modeSelect: HTMLSelectElement | null = null;
+  let fontSelect: HTMLSelectElement | null = null;
+  let fontStatus: HTMLParagraphElement | null = null;
+  let controlsObserver: MutationObserver | null = null;
+  let mediaQueryList: MediaQueryList | null = null;
+
+  const DARK_CSS = `
     html.${ROOT_CLASS} {
       --dm-bg: ${BG_COLOR};
       --dm-bg-surface: #1f1f35;
@@ -702,7 +717,8 @@
       }
     }
   `;
-    const TOGGLE_CSS = `
+
+  const TOGGLE_CSS = `
     #${CONTROLS_ID},
     #${CONTROLS_ID} * {
       box-sizing: border-box;
@@ -867,419 +883,554 @@
       }
     }
   `;
-    const FONT_CSS = createFontCss();
-    bootstrapTheme();
+
+  const FONT_CSS = createFontCss();
+
+  bootstrapTheme();
+  applyFont(font);
+  injectStyle(STYLE_ID, DARK_CSS);
+  injectStyle(FONT_STYLE_ID, FONT_CSS);
+  injectStyle(`${STYLE_ID}-toggle`, TOGGLE_CSS);
+
+  document.addEventListener("keydown", onKeyDown, true);
+
+  setupSystemPreferenceListener();
+  setupCrossTabSync();
+  registerMenuCommands();
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeControls, {
+      once: true
+    });
+  } else {
+    initializeControls();
+  }
+
+  window.addEventListener("load", createAppearanceControls, { once: true });
+
+  function getStoredMode(): Mode {
+    const stored = readStoredValue(PREF_KEY, "auto");
+    return isKnownMode(stored) ? stored : "auto";
+  }
+
+  function getStoredFont(): FontName {
+    const stored = readStoredValue(FONT_PREF_KEY, "site");
+    return isKnownFont(stored) ? stored : "site";
+  }
+
+  function isKnownMode(value: string): value is Mode {
+    return MODES.includes(value as Mode);
+  }
+
+  function isKnownFont(value: string): value is FontName {
+    return Object.prototype.hasOwnProperty.call(FONT_OPTIONS, value);
+  }
+
+  function readStoredValue(key: string, defaultValue: string): string {
+    try {
+      if (typeof GM_getValue === "function") {
+        return GM_getValue(key, defaultValue);
+      }
+    } catch (_e) {
+      /* ignore */
+    }
+
+    try {
+      return localStorage.getItem(key) || defaultValue;
+    } catch (_e) {
+      return defaultValue;
+    }
+  }
+
+  function persistMode(nextMode: string): void {
+    mode = isKnownMode(nextMode) ? nextMode : "auto";
+
+    persistValue(PREF_KEY, mode);
+  }
+
+  function persistFont(nextFont: string): void {
+    font = isKnownFont(nextFont) ? nextFont : "site";
+
+    persistValue(FONT_PREF_KEY, font);
+  }
+
+  function persistValue(key: string, value: string): void {
+    try {
+      if (typeof GM_setValue === "function") {
+        GM_setValue(key, value);
+        return;
+      }
+    } catch (_e) {
+      /* ignore */
+    }
+
+    try {
+      localStorage.setItem(key, value);
+    } catch (_e) {
+      /* ignore */
+    }
+  }
+
+  function systemPrefersDark(): boolean {
+    try {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    } catch (_e) {
+      return true;
+    }
+  }
+
+  function resolveEnabled(currentMode: Mode): boolean {
+    if (currentMode === "auto") return systemPrefersDark();
+    return currentMode === "dark";
+  }
+
+  function bootstrapTheme(): void {
+    applyThemeState(resolveEnabled(mode));
+  }
+
+  function applyThemeState(nextEnabled: boolean): void {
+    enabled = Boolean(nextEnabled);
+    document.documentElement.classList.toggle(ROOT_CLASS, enabled);
+    document.documentElement.style.colorScheme = enabled ? "dark" : "";
+    document.documentElement.style.backgroundColor = enabled ? BG_COLOR : "";
+    updateControls();
+  }
+
+  function setMode(nextMode: string): void {
+    persistMode(nextMode);
+    applyThemeState(resolveEnabled(mode));
+  }
+
+  function setFont(nextFont: string): void {
+    persistFont(nextFont);
     applyFont(font);
-    injectStyle(STYLE_ID, DARK_CSS);
-    injectStyle(FONT_STYLE_ID, FONT_CSS);
-    injectStyle(`${STYLE_ID}-toggle`, TOGGLE_CSS);
-    document.addEventListener("keydown", onKeyDown, true);
-    setupSystemPreferenceListener();
-    setupCrossTabSync();
-    registerMenuCommands();
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initializeControls, {
-            once: true
-        });
+  }
+
+  function applyFont(nextFont: string): void {
+    const validFont = isKnownFont(nextFont) ? nextFont : "site";
+
+    font = validFont;
+
+    if (validFont === "site") {
+      document.documentElement.removeAttribute(FONT_ATTRIBUTE);
+      updateControls();
+      return;
     }
-    else {
-        initializeControls();
+
+    document.documentElement.setAttribute(FONT_ATTRIBUTE, validFont);
+    updateControls();
+  }
+
+  function cycleMode(): void {
+    const currentIndex = MODES.indexOf(mode);
+    const nextMode = MODES[(currentIndex + 1) % MODES.length];
+    setMode(nextMode);
+  }
+
+  function updateControls(): void {
+    if (toggleBtn) {
+      const label = getModeLabel(mode);
+      toggleBtn.dataset.mode = mode;
+      toggleBtn.textContent = getModeIcon(mode);
+      toggleBtn.setAttribute(
+        "aria-label",
+        `${label} mode. Click to cycle modes.`
+      );
+      toggleBtn.title = `${label} mode (Alt+Shift+D). Click to cycle: Auto → Dark → Light`;
     }
-    window.addEventListener("load", createAppearanceControls, { once: true });
-    function getStoredMode() {
-        const stored = readStoredValue(PREF_KEY, "auto");
-        return isKnownMode(stored) ? stored : "auto";
+
+    if (modeSelect) {
+      modeSelect.value = mode;
     }
-    function getStoredFont() {
-        const stored = readStoredValue(FONT_PREF_KEY, "site");
-        return isKnownFont(stored) ? stored : "site";
+
+    if (fontSelect) {
+      fontSelect.value = font;
     }
-    function isKnownMode(value) {
-        return MODES.includes(value);
+
+    if (fontStatus) {
+      fontStatus.textContent = `Current font: ${FONT_OPTIONS[font].label}`;
     }
-    function isKnownFont(value) {
-        return Object.prototype.hasOwnProperty.call(FONT_OPTIONS, value);
+  }
+
+  function getModeLabel(currentMode: Mode): string {
+    if (currentMode === "dark") {
+      return "Dark";
     }
-    function readStoredValue(key, defaultValue) {
-        try {
-            if (typeof GM_getValue === "function") {
-                return GM_getValue(key, defaultValue);
-            }
-        }
-        catch (_e) {
-            /* ignore */
-        }
-        try {
-            return localStorage.getItem(key) || defaultValue;
-        }
-        catch (_e) {
-            return defaultValue;
-        }
+
+    if (currentMode === "light") {
+      return "Light";
     }
-    function persistMode(nextMode) {
-        mode = isKnownMode(nextMode) ? nextMode : "auto";
-        persistValue(PREF_KEY, mode);
+
+    return `Auto (${enabled ? "dark" : "light"})`;
+  }
+
+  function getModeIcon(currentMode: Mode): string {
+    if (currentMode === "dark") {
+      return "\u263D";
     }
-    function persistFont(nextFont) {
-        font = isKnownFont(nextFont) ? nextFont : "site";
-        persistValue(FONT_PREF_KEY, font);
+
+    if (currentMode === "light") {
+      return "\u2600";
     }
-    function persistValue(key, value) {
-        try {
-            if (typeof GM_setValue === "function") {
-                GM_setValue(key, value);
-                return;
-            }
-        }
-        catch (_e) {
-            /* ignore */
-        }
-        try {
-            localStorage.setItem(key, value);
-        }
-        catch (_e) {
-            /* ignore */
-        }
+
+    return "\u25D0";
+  }
+
+  function initializeControls(): void {
+    createAppearanceControls();
+
+    if (
+      controlsObserver ||
+      typeof MutationObserver !== "function" ||
+      !document.documentElement
+    ) {
+      return;
     }
-    function systemPrefersDark() {
-        try {
-            return window.matchMedia("(prefers-color-scheme: dark)").matches;
-        }
-        catch (_e) {
-            return true;
-        }
-    }
-    function resolveEnabled(currentMode) {
-        if (currentMode === "auto")
-            return systemPrefersDark();
-        return currentMode === "dark";
-    }
-    function bootstrapTheme() {
-        applyThemeState(resolveEnabled(mode));
-    }
-    function applyThemeState(nextEnabled) {
-        enabled = Boolean(nextEnabled);
-        document.documentElement.classList.toggle(ROOT_CLASS, enabled);
-        document.documentElement.style.colorScheme = enabled ? "dark" : "";
-        document.documentElement.style.backgroundColor = enabled ? BG_COLOR : "";
-        updateControls();
-    }
-    function setMode(nextMode) {
-        persistMode(nextMode);
-        applyThemeState(resolveEnabled(mode));
-    }
-    function setFont(nextFont) {
-        persistFont(nextFont);
-        applyFont(font);
-    }
-    function applyFont(nextFont) {
-        const validFont = isKnownFont(nextFont) ? nextFont : "site";
-        font = validFont;
-        if (validFont === "site") {
-            document.documentElement.removeAttribute(FONT_ATTRIBUTE);
-            updateControls();
-            return;
-        }
-        document.documentElement.setAttribute(FONT_ATTRIBUTE, validFont);
-        updateControls();
-    }
-    function cycleMode() {
-        const currentIndex = MODES.indexOf(mode);
-        const nextMode = MODES[(currentIndex + 1) % MODES.length];
-        setMode(nextMode);
-    }
-    function updateControls() {
-        if (toggleBtn) {
-            const label = getModeLabel(mode);
-            toggleBtn.dataset.mode = mode;
-            toggleBtn.textContent = getModeIcon(mode);
-            toggleBtn.setAttribute("aria-label", `${label} mode. Click to cycle modes.`);
-            toggleBtn.title = `${label} mode (Alt+Shift+D). Click to cycle: Auto → Dark → Light`;
-        }
-        if (modeSelect) {
-            modeSelect.value = mode;
-        }
-        if (fontSelect) {
-            fontSelect.value = font;
-        }
-        if (fontStatus) {
-            fontStatus.textContent = `Current font: ${FONT_OPTIONS[font].label}`;
-        }
-    }
-    function getModeLabel(currentMode) {
-        if (currentMode === "dark") {
-            return "Dark";
-        }
-        if (currentMode === "light") {
-            return "Light";
-        }
-        return `Auto (${enabled ? "dark" : "light"})`;
-    }
-    function getModeIcon(currentMode) {
-        if (currentMode === "dark") {
-            return "\u263D";
-        }
-        if (currentMode === "light") {
-            return "\u2600";
-        }
-        return "\u25D0";
-    }
-    function initializeControls() {
+
+    controlsObserver = new MutationObserver(function () {
+      if (!document.getElementById(CONTROLS_ID)) {
         createAppearanceControls();
-        if (controlsObserver ||
-            typeof MutationObserver !== "function" ||
-            !document.documentElement) {
+      }
+    });
+    controlsObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  function createAppearanceControls(): void {
+    if (!document.body) {
+      return;
+    }
+
+    const existingControls = document.getElementById(CONTROLS_ID);
+    if (existingControls) {
+      toggleBtn = document.getElementById(TOGGLE_ID) as HTMLButtonElement | null;
+      settingsBtn = document.getElementById(
+        SETTINGS_BUTTON_ID
+      ) as HTMLButtonElement | null;
+      settingsPanel = document.getElementById(SETTINGS_PANEL_ID);
+      modeSelect = document.getElementById(
+        MODE_SELECT_ID
+      ) as HTMLSelectElement | null;
+      fontSelect = document.getElementById(
+        FONT_SELECT_ID
+      ) as HTMLSelectElement | null;
+      fontStatus = null;
+      if (settingsPanel) {
+        fontStatus = settingsPanel.querySelector<HTMLParagraphElement>(
+          ".arxiv-dm-font-status"
+        );
+      }
+      updateControls();
+      return;
+    }
+
+    const controls = document.createElement("div");
+    controls.id = CONTROLS_ID;
+
+    settingsBtn = document.createElement("button");
+    settingsBtn.id = SETTINGS_BUTTON_ID;
+    settingsBtn.type = "button";
+    settingsBtn.textContent = "Aa";
+    settingsBtn.title = "Font and theme settings";
+    settingsBtn.setAttribute("aria-label", "Open font and theme settings");
+    settingsBtn.setAttribute("aria-haspopup", "dialog");
+    settingsBtn.setAttribute("aria-controls", SETTINGS_PANEL_ID);
+    settingsBtn.setAttribute("aria-expanded", "false");
+    settingsBtn.addEventListener("click", toggleSettingsPanel);
+
+    toggleBtn = document.createElement("button");
+    toggleBtn.id = TOGGLE_ID;
+    toggleBtn.type = "button";
+    toggleBtn.addEventListener("click", cycleMode);
+
+    settingsPanel = document.createElement("section");
+    settingsPanel.id = SETTINGS_PANEL_ID;
+    settingsPanel.hidden = true;
+    settingsPanel.setAttribute("role", "dialog");
+    settingsPanel.setAttribute("aria-label", "arXiv appearance settings");
+
+    const panelHeader = document.createElement("div");
+    panelHeader.className = "arxiv-dm-panel-header";
+
+    const panelTitle = document.createElement("strong");
+    panelTitle.className = "arxiv-dm-panel-title";
+    panelTitle.textContent = "Appearance";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "arxiv-dm-panel-close";
+    closeBtn.type = "button";
+    closeBtn.textContent = "\u00D7";
+    closeBtn.setAttribute("aria-label", "Close appearance settings");
+    closeBtn.addEventListener("click", closeSettingsPanel);
+
+    panelHeader.appendChild(panelTitle);
+    panelHeader.appendChild(closeBtn);
+    settingsPanel.appendChild(panelHeader);
+
+    const createdModeSelect = createSelectField(
+      settingsPanel,
+      MODE_SELECT_ID,
+      "Theme",
+      [
+      { value: "auto", label: "Auto (follow system)" },
+      { value: "dark", label: "Dark" },
+      { value: "light", label: "Light" }
+      ]
+    );
+    modeSelect = createdModeSelect;
+    createdModeSelect.addEventListener("change", function () {
+      setMode(createdModeSelect.value);
+    });
+
+    const fontOptions = FONT_NAMES.map(function (fontName) {
+      return {
+        value: fontName,
+        label: FONT_OPTIONS[fontName].label
+      };
+    });
+    const createdFontSelect = createSelectField(
+      settingsPanel,
+      FONT_SELECT_ID,
+      "Reading font",
+      fontOptions
+    );
+    fontSelect = createdFontSelect;
+    createdFontSelect.addEventListener("change", function () {
+      setFont(createdFontSelect.value);
+    });
+
+    fontStatus = document.createElement("p");
+    fontStatus.className = "arxiv-dm-font-status";
+    fontStatus.setAttribute("aria-live", "polite");
+    settingsPanel.appendChild(fontStatus);
+
+    controls.appendChild(settingsBtn);
+    controls.appendChild(toggleBtn);
+    controls.appendChild(settingsPanel);
+    document.body.appendChild(controls);
+    updateControls();
+  }
+
+  function createSelectField(
+    parent: HTMLElement,
+    id: string,
+    labelText: string,
+    options: SelectOptionDefinition[]
+  ): HTMLSelectElement {
+    const label = document.createElement("label");
+    label.htmlFor = id;
+
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = labelText;
+
+    const select = document.createElement("select");
+    select.id = id;
+
+    options.forEach(function (optionDefinition) {
+      const option = document.createElement("option");
+      option.value = optionDefinition.value;
+      option.textContent = optionDefinition.label;
+      select.appendChild(option);
+    });
+
+    label.appendChild(labelSpan);
+    label.appendChild(select);
+    parent.appendChild(label);
+    return select;
+  }
+
+  function toggleSettingsPanel(): void {
+    setSettingsPanelOpen(settingsPanel ? settingsPanel.hidden !== false : true);
+  }
+
+  function closeSettingsPanel(): void {
+    setSettingsPanelOpen(false);
+  }
+
+  function setSettingsPanelOpen(open: boolean): void {
+    if (!settingsPanel || !settingsBtn) {
+      return;
+    }
+
+    settingsPanel.hidden = !open;
+    settingsBtn.setAttribute("aria-expanded", String(open));
+
+    if (open && fontSelect) {
+      fontSelect.focus();
+    }
+  }
+
+  function onKeyDown(event: KeyboardEvent): void {
+    if (event.key === "Escape" && settingsPanel && !settingsPanel.hidden) {
+      closeSettingsPanel();
+      if (settingsBtn) {
+        settingsBtn.focus();
+      }
+      return;
+    }
+
+    if (
+      !event.altKey ||
+      !event.shiftKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.isComposing ||
+      event.code !== "KeyD" ||
+      isEditableTarget(event.target)
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    cycleMode();
+  }
+
+  function isEditableTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement
+    ) {
+      return true;
+    }
+
+    return Boolean(
+      target.closest(
+        "[contenteditable='true'], [contenteditable=''], [role='textbox']"
+      )
+    );
+  }
+
+  function setupSystemPreferenceListener(): void {
+    try {
+      mediaQueryList = window.matchMedia("(prefers-color-scheme: dark)");
+    } catch (_e) {
+      return;
+    }
+
+    const handleChange = function (event: MediaQueryListEvent): void {
+      if (mode !== "auto") {
+        return;
+      }
+
+      applyThemeState(event.matches);
+    };
+
+    if (typeof mediaQueryList.addEventListener === "function") {
+      mediaQueryList.addEventListener("change", handleChange);
+      return;
+    }
+
+    if (typeof mediaQueryList.addListener === "function") {
+      mediaQueryList.addListener(handleChange);
+    }
+  }
+
+  function setupCrossTabSync(): void {
+    try {
+      if (typeof GM_addValueChangeListener !== "function") {
+        return;
+      }
+
+      GM_addValueChangeListener<string>(
+        PREF_KEY,
+        function (_key, _oldValue, newValue, remote) {
+          if (!remote) {
             return;
+          }
+
+          mode = isKnownMode(newValue) ? newValue : "auto";
+          applyThemeState(resolveEnabled(mode));
         }
-        controlsObserver = new MutationObserver(function () {
-            if (!document.getElementById(CONTROLS_ID)) {
-                createAppearanceControls();
-            }
+      );
+
+      GM_addValueChangeListener<string>(
+        FONT_PREF_KEY,
+        function (_key, _oldValue, newValue, remote) {
+          if (!remote) {
+            return;
+          }
+
+          applyFont(newValue);
+        }
+      );
+    } catch (_e) {
+      /* ignore */
+    }
+  }
+
+  function registerMenuCommands(): void {
+    try {
+      if (typeof GM_registerMenuCommand !== "function") {
+        return;
+      }
+
+      GM_registerMenuCommand("Open Appearance Settings", function () {
+        createAppearanceControls();
+        setSettingsPanelOpen(true);
+      });
+      GM_registerMenuCommand("Mode: Auto", function () {
+        setMode("auto");
+      });
+      GM_registerMenuCommand("Mode: Dark", function () {
+        setMode("dark");
+      });
+      GM_registerMenuCommand("Mode: Light", function () {
+        setMode("light");
+      });
+      GM_registerMenuCommand("Cycle Mode (Alt+Shift+D)", cycleMode);
+
+      FONT_NAMES.forEach(function (fontName) {
+        const option = FONT_OPTIONS[fontName];
+        GM_registerMenuCommand(`Font: ${option.label}`, function () {
+          setFont(fontName);
         });
-        controlsObserver.observe(document.documentElement, {
-            childList: true,
-            subtree: true
-        });
+      });
+    } catch (_e) {
+      /* ignore */
     }
-    function createAppearanceControls() {
-        if (!document.body) {
-            return;
-        }
-        const existingControls = document.getElementById(CONTROLS_ID);
-        if (existingControls) {
-            toggleBtn = document.getElementById(TOGGLE_ID);
-            settingsBtn = document.getElementById(SETTINGS_BUTTON_ID);
-            settingsPanel = document.getElementById(SETTINGS_PANEL_ID);
-            modeSelect = document.getElementById(MODE_SELECT_ID);
-            fontSelect = document.getElementById(FONT_SELECT_ID);
-            fontStatus = null;
-            if (settingsPanel) {
-                fontStatus = settingsPanel.querySelector(".arxiv-dm-font-status");
-            }
-            updateControls();
-            return;
-        }
-        const controls = document.createElement("div");
-        controls.id = CONTROLS_ID;
-        settingsBtn = document.createElement("button");
-        settingsBtn.id = SETTINGS_BUTTON_ID;
-        settingsBtn.type = "button";
-        settingsBtn.textContent = "Aa";
-        settingsBtn.title = "Font and theme settings";
-        settingsBtn.setAttribute("aria-label", "Open font and theme settings");
-        settingsBtn.setAttribute("aria-haspopup", "dialog");
-        settingsBtn.setAttribute("aria-controls", SETTINGS_PANEL_ID);
-        settingsBtn.setAttribute("aria-expanded", "false");
-        settingsBtn.addEventListener("click", toggleSettingsPanel);
-        toggleBtn = document.createElement("button");
-        toggleBtn.id = TOGGLE_ID;
-        toggleBtn.type = "button";
-        toggleBtn.addEventListener("click", cycleMode);
-        settingsPanel = document.createElement("section");
-        settingsPanel.id = SETTINGS_PANEL_ID;
-        settingsPanel.hidden = true;
-        settingsPanel.setAttribute("role", "dialog");
-        settingsPanel.setAttribute("aria-label", "arXiv appearance settings");
-        const panelHeader = document.createElement("div");
-        panelHeader.className = "arxiv-dm-panel-header";
-        const panelTitle = document.createElement("strong");
-        panelTitle.className = "arxiv-dm-panel-title";
-        panelTitle.textContent = "Appearance";
-        const closeBtn = document.createElement("button");
-        closeBtn.className = "arxiv-dm-panel-close";
-        closeBtn.type = "button";
-        closeBtn.textContent = "\u00D7";
-        closeBtn.setAttribute("aria-label", "Close appearance settings");
-        closeBtn.addEventListener("click", closeSettingsPanel);
-        panelHeader.appendChild(panelTitle);
-        panelHeader.appendChild(closeBtn);
-        settingsPanel.appendChild(panelHeader);
-        const createdModeSelect = createSelectField(settingsPanel, MODE_SELECT_ID, "Theme", [
-            { value: "auto", label: "Auto (follow system)" },
-            { value: "dark", label: "Dark" },
-            { value: "light", label: "Light" }
-        ]);
-        modeSelect = createdModeSelect;
-        createdModeSelect.addEventListener("change", function () {
-            setMode(createdModeSelect.value);
-        });
-        const fontOptions = FONT_NAMES.map(function (fontName) {
-            return {
-                value: fontName,
-                label: FONT_OPTIONS[fontName].label
-            };
-        });
-        const createdFontSelect = createSelectField(settingsPanel, FONT_SELECT_ID, "Reading font", fontOptions);
-        fontSelect = createdFontSelect;
-        createdFontSelect.addEventListener("change", function () {
-            setFont(createdFontSelect.value);
-        });
-        fontStatus = document.createElement("p");
-        fontStatus.className = "arxiv-dm-font-status";
-        fontStatus.setAttribute("aria-live", "polite");
-        settingsPanel.appendChild(fontStatus);
-        controls.appendChild(settingsBtn);
-        controls.appendChild(toggleBtn);
-        controls.appendChild(settingsPanel);
-        document.body.appendChild(controls);
-        updateControls();
-    }
-    function createSelectField(parent, id, labelText, options) {
-        const label = document.createElement("label");
-        label.htmlFor = id;
-        const labelSpan = document.createElement("span");
-        labelSpan.textContent = labelText;
-        const select = document.createElement("select");
-        select.id = id;
-        options.forEach(function (optionDefinition) {
-            const option = document.createElement("option");
-            option.value = optionDefinition.value;
-            option.textContent = optionDefinition.label;
-            select.appendChild(option);
-        });
-        label.appendChild(labelSpan);
-        label.appendChild(select);
-        parent.appendChild(label);
-        return select;
-    }
-    function toggleSettingsPanel() {
-        setSettingsPanelOpen(settingsPanel ? settingsPanel.hidden !== false : true);
-    }
-    function closeSettingsPanel() {
-        setSettingsPanelOpen(false);
-    }
-    function setSettingsPanelOpen(open) {
-        if (!settingsPanel || !settingsBtn) {
-            return;
-        }
-        settingsPanel.hidden = !open;
-        settingsBtn.setAttribute("aria-expanded", String(open));
-        if (open && fontSelect) {
-            fontSelect.focus();
-        }
-    }
-    function onKeyDown(event) {
-        if (event.key === "Escape" && settingsPanel && !settingsPanel.hidden) {
-            closeSettingsPanel();
-            if (settingsBtn) {
-                settingsBtn.focus();
-            }
-            return;
-        }
-        if (!event.altKey ||
-            !event.shiftKey ||
-            event.ctrlKey ||
-            event.metaKey ||
-            event.isComposing ||
-            event.code !== "KeyD" ||
-            isEditableTarget(event.target)) {
-            return;
-        }
-        event.preventDefault();
-        cycleMode();
-    }
-    function isEditableTarget(target) {
-        if (!(target instanceof Element)) {
-            return false;
-        }
-        if (target instanceof HTMLInputElement ||
-            target instanceof HTMLTextAreaElement ||
-            target instanceof HTMLSelectElement) {
-            return true;
-        }
-        return Boolean(target.closest("[contenteditable='true'], [contenteditable=''], [role='textbox']"));
-    }
-    function setupSystemPreferenceListener() {
-        try {
-            mediaQueryList = window.matchMedia("(prefers-color-scheme: dark)");
-        }
-        catch (_e) {
-            return;
-        }
-        const handleChange = function (event) {
-            if (mode !== "auto") {
-                return;
-            }
-            applyThemeState(event.matches);
-        };
-        if (typeof mediaQueryList.addEventListener === "function") {
-            mediaQueryList.addEventListener("change", handleChange);
-            return;
-        }
-        if (typeof mediaQueryList.addListener === "function") {
-            mediaQueryList.addListener(handleChange);
-        }
-    }
-    function setupCrossTabSync() {
-        try {
-            if (typeof GM_addValueChangeListener !== "function") {
-                return;
-            }
-            GM_addValueChangeListener(PREF_KEY, function (_key, _oldValue, newValue, remote) {
-                if (!remote) {
-                    return;
-                }
-                mode = isKnownMode(newValue) ? newValue : "auto";
-                applyThemeState(resolveEnabled(mode));
-            });
-            GM_addValueChangeListener(FONT_PREF_KEY, function (_key, _oldValue, newValue, remote) {
-                if (!remote) {
-                    return;
-                }
-                applyFont(newValue);
-            });
-        }
-        catch (_e) {
-            /* ignore */
-        }
-    }
-    function registerMenuCommands() {
-        try {
-            if (typeof GM_registerMenuCommand !== "function") {
-                return;
-            }
-            GM_registerMenuCommand("Open Appearance Settings", function () {
-                createAppearanceControls();
-                setSettingsPanelOpen(true);
-            });
-            GM_registerMenuCommand("Mode: Auto", function () {
-                setMode("auto");
-            });
-            GM_registerMenuCommand("Mode: Dark", function () {
-                setMode("dark");
-            });
-            GM_registerMenuCommand("Mode: Light", function () {
-                setMode("light");
-            });
-            GM_registerMenuCommand("Cycle Mode (Alt+Shift+D)", cycleMode);
-            FONT_NAMES.forEach(function (fontName) {
-                const option = FONT_OPTIONS[fontName];
-                GM_registerMenuCommand(`Font: ${option.label}`, function () {
-                    setFont(fontName);
-                });
-            });
-        }
-        catch (_e) {
-            /* ignore */
-        }
-    }
-    function createFontCss() {
-        const fontRules = FONT_NAMES
-            .filter(function (fontName) {
-            return Boolean(FONT_OPTIONS[fontName].family);
-        })
-            .map(function (fontName) {
-            return `html[${FONT_ATTRIBUTE}="${fontName}"] {
+  }
+
+  function createFontCss(): string {
+    const fontRules = FONT_NAMES
+      .filter(function (fontName) {
+        return Boolean(FONT_OPTIONS[fontName].family);
+      })
+      .map(function (fontName) {
+        return `html[${FONT_ATTRIBUTE}="${fontName}"] {
           --arxiv-dm-font-family: ${FONT_OPTIONS[fontName].family};
         }`;
-        })
-            .join("\n");
-        const regularUrl = getResourceUrl("openDyslexicRegular", "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff");
-        const boldUrl = getResourceUrl("openDyslexicBold", "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Bold.woff");
-        const italicUrl = getResourceUrl("openDyslexicItalic", "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Italic.woff");
-        const boldItalicUrl = getResourceUrl("openDyslexicBoldItalic", "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-BoldItalic.woff");
-        const monoUrl = getResourceUrl("openDyslexicMono", "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/otf/OpenDyslexicMono-Regular.otf");
-        return `
+      })
+      .join("\n");
+
+    const regularUrl = getResourceUrl(
+      "openDyslexicRegular",
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff"
+    );
+    const boldUrl = getResourceUrl(
+      "openDyslexicBold",
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Bold.woff"
+    );
+    const italicUrl = getResourceUrl(
+      "openDyslexicItalic",
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Italic.woff"
+    );
+    const boldItalicUrl = getResourceUrl(
+      "openDyslexicBoldItalic",
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-BoldItalic.woff"
+    );
+    const monoUrl = getResourceUrl(
+      "openDyslexicMono",
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/otf/OpenDyslexicMono-Regular.otf"
+    );
+
+    return `
       @font-face {
         font-family: "OpenDyslexic";
         src: local("OpenDyslexic"), url("${regularUrl}") format("woff");
@@ -1346,25 +1497,28 @@
         font-family: var(--arxiv-dm-font-family) !important;
       }
     `;
+  }
+
+  function getResourceUrl(name: string, fallbackUrl: string): string {
+    try {
+      if (typeof GM_getResourceURL === "function") {
+        return GM_getResourceURL(name);
+      }
+    } catch (_e) {
+      /* ignore */
     }
-    function getResourceUrl(name, fallbackUrl) {
-        try {
-            if (typeof GM_getResourceURL === "function") {
-                return GM_getResourceURL(name);
-            }
-        }
-        catch (_e) {
-            /* ignore */
-        }
-        return fallbackUrl;
+
+    return fallbackUrl;
+  }
+
+  function injectStyle(id: string, cssText: string): void {
+    if (document.getElementById(id)) {
+      return;
     }
-    function injectStyle(id, cssText) {
-        if (document.getElementById(id)) {
-            return;
-        }
-        const styleEl = document.createElement("style");
-        styleEl.id = id;
-        styleEl.textContent = cssText;
-        (document.head || document.documentElement).appendChild(styleEl);
-    }
+
+    const styleEl = document.createElement("style");
+    styleEl.id = id;
+    styleEl.textContent = cssText;
+    (document.head || document.documentElement).appendChild(styleEl);
+  }
 })();
