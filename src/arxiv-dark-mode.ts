@@ -56,30 +56,30 @@
   const FONT_OPTIONS = {
     site: {
       label: "Site default",
-      family: null
+      family: null,
     },
     system: {
       label: "System sans-serif",
       family:
-        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     },
     serif: {
       label: "Serif",
-      family: 'Georgia, "Times New Roman", serif'
+      family: 'Georgia, "Times New Roman", serif',
     },
     monospace: {
       label: "Monospace",
       family:
-        '"Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace'
+        '"Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace',
     },
     opendyslexic: {
       label: "OpenDyslexic",
-      family: '"OpenDyslexic", sans-serif'
+      family: '"OpenDyslexic", sans-serif',
     },
     "opendyslexic-mono": {
       label: "OpenDyslexic Mono",
-      family: '"OpenDyslexic Mono", monospace'
-    }
+      family: '"OpenDyslexic Mono", monospace',
+    },
   } satisfies Record<string, FontOption>;
   type FontName = keyof typeof FONT_OPTIONS;
   const FONT_NAMES = Object.keys(FONT_OPTIONS) as FontName[];
@@ -900,7 +900,7 @@
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initializeControls, {
-      once: true
+      once: true,
     });
   } else {
     initializeControls();
@@ -1034,7 +1034,7 @@
       toggleBtn.textContent = getModeIcon(mode);
       toggleBtn.setAttribute(
         "aria-label",
-        `${label} mode. Click to cycle modes.`
+        `${label} mode. Click to cycle modes.`,
       );
       toggleBtn.title = `${label} mode (Alt+Shift+D). Click to cycle: Auto → Dark → Light`;
     }
@@ -1094,7 +1094,7 @@
     });
     controlsObserver.observe(document.documentElement, {
       childList: true,
-      subtree: true
+      subtree: true,
     });
   }
 
@@ -1105,21 +1105,23 @@
 
     const existingControls = document.getElementById(CONTROLS_ID);
     if (existingControls) {
-      toggleBtn = document.getElementById(TOGGLE_ID) as HTMLButtonElement | null;
+      toggleBtn = document.getElementById(
+        TOGGLE_ID,
+      ) as HTMLButtonElement | null;
       settingsBtn = document.getElementById(
-        SETTINGS_BUTTON_ID
+        SETTINGS_BUTTON_ID,
       ) as HTMLButtonElement | null;
       settingsPanel = document.getElementById(SETTINGS_PANEL_ID);
       modeSelect = document.getElementById(
-        MODE_SELECT_ID
+        MODE_SELECT_ID,
       ) as HTMLSelectElement | null;
       fontSelect = document.getElementById(
-        FONT_SELECT_ID
+        FONT_SELECT_ID,
       ) as HTMLSelectElement | null;
       fontStatus = null;
       if (settingsPanel) {
         fontStatus = settingsPanel.querySelector<HTMLParagraphElement>(
-          ".arxiv-dm-font-status"
+          ".arxiv-dm-font-status",
         );
       }
       updateControls();
@@ -1174,10 +1176,10 @@
       MODE_SELECT_ID,
       "Theme",
       [
-      { value: "auto", label: "Auto (follow system)" },
-      { value: "dark", label: "Dark" },
-      { value: "light", label: "Light" }
-      ]
+        { value: "auto", label: "Auto (follow system)" },
+        { value: "dark", label: "Dark" },
+        { value: "light", label: "Light" },
+      ],
     );
     modeSelect = createdModeSelect;
     createdModeSelect.addEventListener("change", function () {
@@ -1187,14 +1189,14 @@
     const fontOptions = FONT_NAMES.map(function (fontName) {
       return {
         value: fontName,
-        label: FONT_OPTIONS[fontName].label
+        label: FONT_OPTIONS[fontName].label,
       };
     });
     const createdFontSelect = createSelectField(
       settingsPanel,
       FONT_SELECT_ID,
       "Reading font",
-      fontOptions
+      fontOptions,
     );
     fontSelect = createdFontSelect;
     createdFontSelect.addEventListener("change", function () {
@@ -1217,7 +1219,7 @@
     parent: HTMLElement,
     id: string,
     labelText: string,
-    options: SelectOptionDefinition[]
+    options: SelectOptionDefinition[],
   ): HTMLSelectElement {
     const label = document.createElement("label");
     label.htmlFor = id;
@@ -1302,8 +1304,8 @@
 
     return Boolean(
       target.closest(
-        "[contenteditable='true'], [contenteditable=''], [role='textbox']"
-      )
+        "[contenteditable='true'], [contenteditable=''], [role='textbox']",
+      ),
     );
   }
 
@@ -1347,7 +1349,7 @@
 
           mode = isKnownMode(newValue) ? newValue : "auto";
           applyThemeState(resolveEnabled(mode));
-        }
+        },
       );
 
       GM_addValueChangeListener<string>(
@@ -1358,7 +1360,7 @@
           }
 
           applyFont(newValue);
-        }
+        },
       );
     } catch (_e) {
       /* ignore */
@@ -1398,10 +1400,9 @@
   }
 
   function createFontCss(): string {
-    const fontRules = FONT_NAMES
-      .filter(function (fontName) {
-        return Boolean(FONT_OPTIONS[fontName].family);
-      })
+    const fontRules = FONT_NAMES.filter(function (fontName) {
+      return Boolean(FONT_OPTIONS[fontName].family);
+    })
       .map(function (fontName) {
         return `html[${FONT_ATTRIBUTE}="${fontName}"] {
           --arxiv-dm-font-family: ${FONT_OPTIONS[fontName].family};
@@ -1411,23 +1412,23 @@
 
     const regularUrl = getResourceUrl(
       "openDyslexicRegular",
-      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff"
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff",
     );
     const boldUrl = getResourceUrl(
       "openDyslexicBold",
-      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Bold.woff"
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Bold.woff",
     );
     const italicUrl = getResourceUrl(
       "openDyslexicItalic",
-      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Italic.woff"
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Italic.woff",
     );
     const boldItalicUrl = getResourceUrl(
       "openDyslexicBoldItalic",
-      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-BoldItalic.woff"
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-BoldItalic.woff",
     );
     const monoUrl = getResourceUrl(
       "openDyslexicMono",
-      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/otf/OpenDyslexicMono-Regular.otf"
+      "https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/otf/OpenDyslexicMono-Regular.otf",
     );
 
     return `

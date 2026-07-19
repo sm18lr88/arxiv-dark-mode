@@ -46,28 +46,28 @@
     const FONT_OPTIONS = {
         site: {
             label: "Site default",
-            family: null
+            family: null,
         },
         system: {
             label: "System sans-serif",
-            family: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+            family: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         },
         serif: {
             label: "Serif",
-            family: 'Georgia, "Times New Roman", serif'
+            family: 'Georgia, "Times New Roman", serif',
         },
         monospace: {
             label: "Monospace",
-            family: '"Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace'
+            family: '"Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace',
         },
         opendyslexic: {
             label: "OpenDyslexic",
-            family: '"OpenDyslexic", sans-serif'
+            family: '"OpenDyslexic", sans-serif',
         },
         "opendyslexic-mono": {
             label: "OpenDyslexic Mono",
-            family: '"OpenDyslexic Mono", monospace'
-        }
+            family: '"OpenDyslexic Mono", monospace',
+        },
     };
     const FONT_NAMES = Object.keys(FONT_OPTIONS);
     const BG_COLOR = "#1a1a2e";
@@ -879,7 +879,7 @@
     registerMenuCommands();
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", initializeControls, {
-            once: true
+            once: true,
         });
     }
     else {
@@ -1038,7 +1038,7 @@
         });
         controlsObserver.observe(document.documentElement, {
             childList: true,
-            subtree: true
+            subtree: true,
         });
     }
     function createAppearanceControls() {
@@ -1097,7 +1097,7 @@
         const createdModeSelect = createSelectField(settingsPanel, MODE_SELECT_ID, "Theme", [
             { value: "auto", label: "Auto (follow system)" },
             { value: "dark", label: "Dark" },
-            { value: "light", label: "Light" }
+            { value: "light", label: "Light" },
         ]);
         modeSelect = createdModeSelect;
         createdModeSelect.addEventListener("change", function () {
@@ -1106,7 +1106,7 @@
         const fontOptions = FONT_NAMES.map(function (fontName) {
             return {
                 value: fontName,
-                label: FONT_OPTIONS[fontName].label
+                label: FONT_OPTIONS[fontName].label,
             };
         });
         const createdFontSelect = createSelectField(settingsPanel, FONT_SELECT_ID, "Reading font", fontOptions);
@@ -1264,8 +1264,7 @@
         }
     }
     function createFontCss() {
-        const fontRules = FONT_NAMES
-            .filter(function (fontName) {
+        const fontRules = FONT_NAMES.filter(function (fontName) {
             return Boolean(FONT_OPTIONS[fontName].family);
         })
             .map(function (fontName) {
