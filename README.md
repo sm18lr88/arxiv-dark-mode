@@ -10,7 +10,8 @@ A Tampermonkey userscript that applies a comprehensive dark theme and readable f
 
 - Three modes: **Auto** (follows system preference), **Dark**, and **Light**
 - Covers all major arXiv subdomains: `arxiv.org`, `export.arxiv.org`, `info.arxiv.org`, `html.arxiv.org`, `ar5iv.labs.arxiv.org`
-- Floating toggle button (bottom-right corner) cycles through modes on click
+- Persistent `Aa` appearance controls expose theme and font selectors on every page
+- Floating theme button cycles through modes on click
 - Keyboard shortcut: `Alt+Shift+D`
 - Tampermonkey menu commands for direct mode selection
 - Persistent font choices: site default, system sans-serif, serif, monospace, OpenDyslexic, and OpenDyslexic Mono
@@ -23,16 +24,16 @@ A Tampermonkey userscript that applies a comprehensive dark theme and readable f
 ## Installation
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) for your browser.
-2. Open the [raw script file](../../raw/main/arxiv-dark-mode.js) and Tampermonkey will prompt you to install it.
+2. Open the [raw script file](../../raw/master/arxiv-dark-mode.js) and Tampermonkey will prompt you to install it.
 
 ## Usage
 
-| Action | Result |
-|---|---|
-| Click the toggle button | Cycles: Auto → Dark → Light |
-| `Alt+Shift+D` | Same as clicking the toggle |
-| Tampermonkey menu | Set mode directly (Auto / Dark / Light) |
-| Tampermonkey menu → `Font: …` | Select the page font, including OpenDyslexic options |
+| Action                        | Result                                               |
+| ----------------------------- | ---------------------------------------------------- |
+| Click the `Aa` button         | Open visible theme and reading-font settings         |
+| Click the theme button        | Cycle: Auto → Dark → Light                           |
+| `Alt+Shift+D`                 | Cycle the theme                                      |
+| Tampermonkey menu             | Open settings or select a theme/font directly        |
 
 The selected mode and font are saved independently and persist across sessions.
 

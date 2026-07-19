@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         arXiv Dark Mode
 // @namespace    https://arxiv.org/
-// @version      0.4.0
+// @version      0.5.0
 // @description  Dark theme and accessible font choices for arXiv.org
 // @author       sm18lr88
 // @license      MIT
@@ -37,7 +37,12 @@
   const STYLE_ID = "arxiv-dm-styles";
   const FONT_STYLE_ID = "arxiv-dm-fonts";
   const FONT_ATTRIBUTE = "data-arxiv-dm-font";
+  const CONTROLS_ID = "arxiv-dm-controls";
   const TOGGLE_ID = "arxiv-dm-toggle";
+  const SETTINGS_BUTTON_ID = "arxiv-dm-settings-button";
+  const SETTINGS_PANEL_ID = "arxiv-dm-settings-panel";
+  const MODE_SELECT_ID = "arxiv-dm-mode-select";
+  const FONT_SELECT_ID = "arxiv-dm-font-select";
   const MODES = ["auto", "dark", "light"];
   const FONT_OPTIONS = {
     site: {
@@ -73,6 +78,12 @@
   let font = getStoredFont();
   let enabled = resolveEnabled(mode);
   let toggleBtn = null;
+  let settingsBtn = null;
+  let settingsPanel = null;
+  let modeSelect = null;
+  let fontSelect = null;
+  let fontStatus = null;
+  let controlsObserver = null;
   let mediaQueryList = null;
 
   const DARK_CSS = `
@@ -600,6 +611,77 @@
       color: var(--dm-text-muted) !important;
     }
 
+    html.${ROOT_CLASS} .arxiv-search-overlay {
+      background: rgba(8, 8, 20, 0.72) !important;
+    }
+
+    html.${ROOT_CLASS} .arxiv-search-panel,
+    html.${ROOT_CLASS} .arxiv-search-panel form,
+    html.${ROOT_CLASS} .arxiv-search-hint {
+      background-color: var(--dm-bg-elevated) !important;
+      color: var(--dm-text-muted) !important;
+      border-color: var(--dm-border) !important;
+    }
+
+    html.${ROOT_CLASS} .arxiv-search-panel {
+      box-shadow: var(--dm-shadow) !important;
+    }
+
+    html.${ROOT_CLASS} .ltx_page_main,
+    html.${ROOT_CLASS} .ltx_page_content {
+      background-color: var(--dm-bg) !important;
+    }
+
+    html.${ROOT_CLASS} nav.ltx_TOC {
+      background-color: var(--dm-bg-surface) !important;
+      background-image: none !important;
+      border-right: 1px solid var(--dm-border) !important;
+      color: var(--dm-text) !important;
+    }
+
+    html.${ROOT_CLASS} nav.ltx_TOC:not(.active):not(.mobile) {
+      width: 52px !important;
+      min-width: 52px !important;
+      max-width: 52px !important;
+      margin: 0 !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      overflow: hidden !important;
+    }
+
+    html.${ROOT_CLASS} nav.ltx_TOC:not(.active):not(.mobile) .ltx_toclist {
+      display: none !important;
+    }
+
+    html.${ROOT_CLASS} nav.ltx_TOC #listIcon,
+    html.${ROOT_CLASS} nav.ltx_TOC #arrowIcon {
+      width: 36px !important;
+      height: 36px !important;
+      margin: 8px auto 16px !important;
+      border-radius: 8px !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent !important;
+      cursor: pointer;
+    }
+
+    html.${ROOT_CLASS} nav.ltx_TOC #listIcon:hover,
+    html.${ROOT_CLASS} nav.ltx_TOC #arrowIcon:hover {
+      background-color: var(--dm-bg-hover) !important;
+    }
+
+    html.${ROOT_CLASS} nav.ltx_TOC #listIcon.hide,
+    html.${ROOT_CLASS} nav.ltx_TOC #arrowIcon.hide {
+      display: none !important;
+    }
+
+    html.${ROOT_CLASS} nav.ltx_TOC #listIcon svg,
+    html.${ROOT_CLASS} nav.ltx_TOC #arrowIcon svg {
+      background: transparent !important;
+      fill: var(--dm-text) !important;
+    }
+
     @media print {
       html.${ROOT_CLASS},
       html.${ROOT_CLASS} body,
@@ -619,77 +701,173 @@
         color: #00c !important;
       }
 
-      #${TOGGLE_ID} {
+      #${CONTROLS_ID} {
         display: none !important;
       }
     }
   `;
 
   const TOGGLE_CSS = `
-    #${TOGGLE_ID} {
+    #${CONTROLS_ID},
+    #${CONTROLS_ID} * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    }
+
+    #${CONTROLS_ID} {
+      --ui-bg: rgba(250, 250, 253, 0.97);
+      --ui-surface: #ffffff;
+      --ui-hover: #eeeeF6;
+      --ui-text: #262638;
+      --ui-muted: #67677d;
+      --ui-border: rgba(38, 38, 56, 0.18);
+      --ui-accent: #315fab;
       position: fixed;
       right: 16px;
       bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-      z-index: 999999;
-      width: 44px;
-      height: 44px;
+      z-index: 2147483646;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      color: var(--ui-text);
+    }
+
+    html.${ROOT_CLASS} #${CONTROLS_ID} {
+      --ui-bg: rgba(31, 31, 53, 0.97);
+      --ui-surface: #25253d;
+      --ui-hover: #2c2c48;
+      --ui-text: #ececfa;
+      --ui-muted: #aaaac1;
+      --ui-border: rgba(170, 170, 193, 0.25);
+      --ui-accent: #7aa2f7;
+    }
+
+    #${CONTROLS_ID} > button,
+    #${SETTINGS_PANEL_ID} button {
+      appearance: none;
+      border: 1px solid var(--ui-border) !important;
+      background: var(--ui-bg) !important;
+      color: var(--ui-text) !important;
+      cursor: pointer;
+    }
+
+    #${CONTROLS_ID} > button {
+      width: 46px;
+      height: 46px;
       border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: rgba(22, 22, 43, 0.92);
-      color: #f4f4ff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
-      line-height: 1;
       padding: 0;
-      cursor: pointer;
-      user-select: none;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
       backdrop-filter: blur(10px);
-      transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-      opacity: 0.82;
+      transition: transform 0.15s ease, background-color 0.15s ease;
     }
 
-    #${TOGGLE_ID}:hover {
-      opacity: 1;
+    #${CONTROLS_ID} > button:hover {
+      background: var(--ui-hover) !important;
       transform: translateY(-1px);
     }
 
-    #${TOGGLE_ID}:focus-visible {
-      outline: 2px solid #7aa2f7;
+    #${CONTROLS_ID} button:focus-visible,
+    #${CONTROLS_ID} select:focus-visible {
+      outline: 2px solid var(--ui-accent) !important;
       outline-offset: 3px;
-      opacity: 1;
     }
 
-    #${TOGGLE_ID}[data-mode="light"] {
-      background: rgba(244, 244, 250, 0.95);
-      color: #303044;
-      border-color: rgba(48, 48, 68, 0.2);
+    #${SETTINGS_BUTTON_ID}[aria-expanded="true"] {
+      background: var(--ui-accent) !important;
+      color: #ffffff !important;
     }
 
-    #${TOGGLE_ID}[data-mode="auto"] {
-      background: rgba(42, 42, 64, 0.92);
-      color: #d8dcff;
-      border-color: rgba(122, 162, 247, 0.3);
+    #${SETTINGS_PANEL_ID} {
+      position: absolute;
+      right: 0;
+      bottom: 58px;
+      width: min(320px, calc(100vw - 32px));
+      padding: 16px;
+      border: 1px solid var(--ui-border);
+      border-radius: 14px;
+      background: var(--ui-bg);
+      color: var(--ui-text);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+      backdrop-filter: blur(14px);
+    }
+
+    #${SETTINGS_PANEL_ID}[hidden] {
+      display: none !important;
+    }
+
+    #${SETTINGS_PANEL_ID} .arxiv-dm-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    #${SETTINGS_PANEL_ID} .arxiv-dm-panel-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    #${SETTINGS_PANEL_ID} .arxiv-dm-panel-close {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 8px;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    #${SETTINGS_PANEL_ID} label {
+      display: grid;
+      gap: 6px;
+      margin-top: 12px;
+      color: var(--ui-muted) !important;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    #${SETTINGS_PANEL_ID} select {
+      width: 100%;
+      min-height: 40px;
+      padding: 8px 34px 8px 10px;
+      border: 1px solid var(--ui-border) !important;
+      border-radius: 8px;
+      background-color: var(--ui-surface) !important;
+      color: var(--ui-text) !important;
+      font-size: 14px;
+    }
+
+    #${SETTINGS_PANEL_ID} .arxiv-dm-font-status {
+      margin: 12px 0 0;
+      color: var(--ui-muted) !important;
+      font-size: 12px;
     }
 
     @media (prefers-reduced-motion: reduce) {
-      #${TOGGLE_ID} {
+      #${CONTROLS_ID} > button {
         transition: none;
       }
     }
 
     @media (max-width: 640px) {
-      #${TOGGLE_ID} {
+      #${CONTROLS_ID} {
         right: 12px;
-        width: 42px;
-        height: 42px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      }
+
+      #${CONTROLS_ID} > button {
+        width: 44px;
+        height: 44px;
       }
     }
 
     @media print {
-      #${TOGGLE_ID} {
+      #${CONTROLS_ID} {
         display: none !important;
       }
     }
@@ -710,12 +888,14 @@
   registerMenuCommands();
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", createToggleBtn, {
+    document.addEventListener("DOMContentLoaded", initializeControls, {
       once: true
     });
   } else {
-    createToggleBtn();
+    initializeControls();
   }
+
+  window.addEventListener("load", createAppearanceControls, { once: true });
 
   function getStoredMode() {
     const stored = readStoredValue(PREF_KEY, "auto");
@@ -798,7 +978,7 @@
     document.documentElement.classList.toggle(ROOT_CLASS, enabled);
     document.documentElement.style.colorScheme = enabled ? "dark" : "";
     document.documentElement.style.backgroundColor = enabled ? BG_COLOR : "";
-    updateToggleBtn();
+    updateControls();
   }
 
   function setMode(nextMode) {
@@ -818,10 +998,12 @@
 
     if (validFont === "site") {
       document.documentElement.removeAttribute(FONT_ATTRIBUTE);
+      updateControls();
       return;
     }
 
     document.documentElement.setAttribute(FONT_ATTRIBUTE, validFont);
+    updateControls();
   }
 
   function cycleMode() {
@@ -830,19 +1012,29 @@
     setMode(nextMode);
   }
 
-  function updateToggleBtn() {
-    if (!toggleBtn) {
-      return;
+  function updateControls() {
+    if (toggleBtn) {
+      const label = getModeLabel(mode);
+      toggleBtn.dataset.mode = mode;
+      toggleBtn.textContent = getModeIcon(mode);
+      toggleBtn.setAttribute(
+        "aria-label",
+        `${label} mode. Click to cycle modes.`
+      );
+      toggleBtn.title = `${label} mode (Alt+Shift+D). Click to cycle: Auto → Dark → Light`;
     }
 
-    const label = getModeLabel(mode);
-    toggleBtn.dataset.mode = mode;
-    toggleBtn.textContent = getModeIcon(mode);
-    toggleBtn.setAttribute(
-      "aria-label",
-      `${label} mode. Click to cycle modes.`
-    );
-    toggleBtn.title = `${label} mode (Alt+Shift+D). Click to cycle: Auto → Dark → Light`;
+    if (modeSelect) {
+      modeSelect.value = mode;
+    }
+
+    if (fontSelect) {
+      fontSelect.value = font;
+    }
+
+    if (fontStatus) {
+      fontStatus.textContent = `Current font: ${FONT_OPTIONS[font].label}`;
+    }
   }
 
   function getModeLabel(currentMode) {
@@ -869,20 +1061,179 @@
     return "\u25D0";
   }
 
-  function createToggleBtn() {
-    if (document.getElementById(TOGGLE_ID) || !document.body) {
+  function initializeControls() {
+    createAppearanceControls();
+
+    if (
+      controlsObserver ||
+      typeof MutationObserver !== "function" ||
+      !document.documentElement
+    ) {
       return;
     }
+
+    controlsObserver = new MutationObserver(function () {
+      if (!document.getElementById(CONTROLS_ID)) {
+        createAppearanceControls();
+      }
+    });
+    controlsObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  function createAppearanceControls() {
+    if (!document.body) {
+      return;
+    }
+
+    const existingControls = document.getElementById(CONTROLS_ID);
+    if (existingControls) {
+      toggleBtn = document.getElementById(TOGGLE_ID);
+      settingsBtn = document.getElementById(SETTINGS_BUTTON_ID);
+      settingsPanel = document.getElementById(SETTINGS_PANEL_ID);
+      modeSelect = document.getElementById(MODE_SELECT_ID);
+      fontSelect = document.getElementById(FONT_SELECT_ID);
+      fontStatus = null;
+      if (settingsPanel) {
+        fontStatus = settingsPanel.querySelector(".arxiv-dm-font-status");
+      }
+      updateControls();
+      return;
+    }
+
+    const controls = document.createElement("div");
+    controls.id = CONTROLS_ID;
+
+    settingsBtn = document.createElement("button");
+    settingsBtn.id = SETTINGS_BUTTON_ID;
+    settingsBtn.type = "button";
+    settingsBtn.textContent = "Aa";
+    settingsBtn.title = "Font and theme settings";
+    settingsBtn.setAttribute("aria-label", "Open font and theme settings");
+    settingsBtn.setAttribute("aria-haspopup", "dialog");
+    settingsBtn.setAttribute("aria-controls", SETTINGS_PANEL_ID);
+    settingsBtn.setAttribute("aria-expanded", "false");
+    settingsBtn.addEventListener("click", toggleSettingsPanel);
 
     toggleBtn = document.createElement("button");
     toggleBtn.id = TOGGLE_ID;
     toggleBtn.type = "button";
     toggleBtn.addEventListener("click", cycleMode);
-    document.body.appendChild(toggleBtn);
-    updateToggleBtn();
+
+    settingsPanel = document.createElement("section");
+    settingsPanel.id = SETTINGS_PANEL_ID;
+    settingsPanel.hidden = true;
+    settingsPanel.setAttribute("role", "dialog");
+    settingsPanel.setAttribute("aria-label", "arXiv appearance settings");
+
+    const panelHeader = document.createElement("div");
+    panelHeader.className = "arxiv-dm-panel-header";
+
+    const panelTitle = document.createElement("strong");
+    panelTitle.className = "arxiv-dm-panel-title";
+    panelTitle.textContent = "Appearance";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "arxiv-dm-panel-close";
+    closeBtn.type = "button";
+    closeBtn.textContent = "\u00D7";
+    closeBtn.setAttribute("aria-label", "Close appearance settings");
+    closeBtn.addEventListener("click", closeSettingsPanel);
+
+    panelHeader.appendChild(panelTitle);
+    panelHeader.appendChild(closeBtn);
+    settingsPanel.appendChild(panelHeader);
+
+    modeSelect = createSelectField(settingsPanel, MODE_SELECT_ID, "Theme", [
+      { value: "auto", label: "Auto (follow system)" },
+      { value: "dark", label: "Dark" },
+      { value: "light", label: "Light" }
+    ]);
+    modeSelect.addEventListener("change", function () {
+      setMode(modeSelect.value);
+    });
+
+    const fontOptions = Object.keys(FONT_OPTIONS).map(function (fontName) {
+      return {
+        value: fontName,
+        label: FONT_OPTIONS[fontName].label
+      };
+    });
+    fontSelect = createSelectField(
+      settingsPanel,
+      FONT_SELECT_ID,
+      "Reading font",
+      fontOptions
+    );
+    fontSelect.addEventListener("change", function () {
+      setFont(fontSelect.value);
+    });
+
+    fontStatus = document.createElement("p");
+    fontStatus.className = "arxiv-dm-font-status";
+    fontStatus.setAttribute("aria-live", "polite");
+    settingsPanel.appendChild(fontStatus);
+
+    controls.appendChild(settingsBtn);
+    controls.appendChild(toggleBtn);
+    controls.appendChild(settingsPanel);
+    document.body.appendChild(controls);
+    updateControls();
+  }
+
+  function createSelectField(parent, id, labelText, options) {
+    const label = document.createElement("label");
+    label.htmlFor = id;
+
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = labelText;
+
+    const select = document.createElement("select");
+    select.id = id;
+
+    options.forEach(function (optionDefinition) {
+      const option = document.createElement("option");
+      option.value = optionDefinition.value;
+      option.textContent = optionDefinition.label;
+      select.appendChild(option);
+    });
+
+    label.appendChild(labelSpan);
+    label.appendChild(select);
+    parent.appendChild(label);
+    return select;
+  }
+
+  function toggleSettingsPanel() {
+    setSettingsPanelOpen(settingsPanel ? settingsPanel.hidden : true);
+  }
+
+  function closeSettingsPanel() {
+    setSettingsPanelOpen(false);
+  }
+
+  function setSettingsPanelOpen(open) {
+    if (!settingsPanel || !settingsBtn) {
+      return;
+    }
+
+    settingsPanel.hidden = !open;
+    settingsBtn.setAttribute("aria-expanded", String(open));
+
+    if (open && fontSelect) {
+      fontSelect.focus();
+    }
   }
 
   function onKeyDown(event) {
+    if (event.key === "Escape" && settingsPanel && !settingsPanel.hidden) {
+      closeSettingsPanel();
+      settingsBtn.focus();
+      return;
+    }
+
     if (
       !event.altKey ||
       !event.shiftKey ||
@@ -983,6 +1334,10 @@
         return;
       }
 
+      GM_registerMenuCommand("Open Appearance Settings", function () {
+        createAppearanceControls();
+        setSettingsPanelOpen(true);
+      });
       GM_registerMenuCommand("Mode: Auto", function () {
         setMode("auto");
       });
