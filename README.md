@@ -13,8 +13,6 @@ The project is TypeScript-first: edit `src/arxiv-dark-mode.ts`, then run `npm ru
 - Three modes: **Auto** (follows system preference), **Dark**, and **Light**
 - Covers all major arXiv subdomains: `arxiv.org`, `export.arxiv.org`, `info.arxiv.org`, `html.arxiv.org`, `ar5iv.labs.arxiv.org`
 - Persistent `Aa` appearance controls expose theme and font selectors on every page
-- Floating theme button cycles through modes on click
-- Keyboard shortcut: `Alt+Shift+D`
 - Tampermonkey menu commands for direct mode selection
 - Persistent font choices: site default, system sans-serif, serif, monospace, OpenDyslexic, and OpenDyslexic Mono
 - Cross-tab sync: changing mode in one tab propagates to others instantly
@@ -36,15 +34,13 @@ npm run check
 npm run build
 ```
 
-`src/` is authoritative. `dist/arxiv-dark-mode.js` is the canonical release artifact, while the generated root copy remains temporarily for compatibility with existing installations that still check the old update path.
+`src/` is authoritative. `dist/arxiv-dark-mode.js` is the only generated release artifact.
 
 ## Usage
 
 | Action                        | Result                                               |
 | ----------------------------- | ---------------------------------------------------- |
 | Click the `Aa` button         | Open visible theme and reading-font settings         |
-| Click the theme button        | Cycle: Auto → Dark → Light                           |
-| `Alt+Shift+D`                 | Cycle the theme                                      |
 | Tampermonkey menu             | Open settings or select a theme/font directly        |
 
 The selected mode and font are saved independently and persist across sessions.

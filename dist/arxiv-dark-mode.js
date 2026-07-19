@@ -37,7 +37,6 @@
     const FONT_STYLE_ID = "arxiv-dm-fonts";
     const FONT_ATTRIBUTE = "data-arxiv-dm-font";
     const CONTROLS_ID = "arxiv-dm-controls";
-    const TOGGLE_ID = "arxiv-dm-toggle";
     const SETTINGS_BUTTON_ID = "arxiv-dm-settings-button";
     const SETTINGS_PANEL_ID = "arxiv-dm-settings-panel";
     const MODE_SELECT_ID = "arxiv-dm-mode-select";
@@ -74,7 +73,6 @@
     let mode = getStoredMode();
     let font = getStoredFont();
     let enabled = resolveEnabled(mode);
-    let toggleBtn = null;
     let settingsBtn = null;
     let settingsPanel = null;
     let modeSelect = null;
@@ -702,7 +700,7 @@
       }
     }
   `;
-    const TOGGLE_CSS = `
+    const CONTROLS_CSS = `
     #${CONTROLS_ID},
     #${CONTROLS_ID} * {
       box-sizing: border-box;
@@ -872,8 +870,8 @@
     applyFont(font);
     injectStyle(STYLE_ID, DARK_CSS);
     injectStyle(FONT_STYLE_ID, FONT_CSS);
-    injectStyle(`${STYLE_ID}-toggle`, TOGGLE_CSS);
-    document.addEventListener("keydown", onKeyDown, true);
+    injectStyle(`${STYLE_ID}-controls`, CONTROLS_CSS);
+    document.addEventListener("keydown", onSettingsKeyDown, true);
     setupSystemPreferenceListener();
     setupCrossTabSync();
     registerMenuCommands();
@@ -983,19 +981,7 @@
         document.documentElement.setAttribute(FONT_ATTRIBUTE, validFont);
         updateControls();
     }
-    function cycleMode() {
-        const currentIndex = MODES.indexOf(mode);
-        const nextMode = MODES[(currentIndex + 1) % MODES.length];
-        setMode(nextMode);
-    }
     function updateControls() {
-        if (toggleBtn) {
-            const label = getModeLabel(mode);
-            toggleBtn.dataset.mode = mode;
-            toggleBtn.textContent = getModeIcon(mode);
-            toggleBtn.setAttribute("aria-label", `${label} mode. Click to cycle modes.`);
-            toggleBtn.title = `${label} mode (Alt+Shift+D). Click to cycle: Auto → Dark → Light`;
-        }
         if (modeSelect) {
             modeSelect.value = mode;
         }
@@ -1005,24 +991,6 @@
         if (fontStatus) {
             fontStatus.textContent = `Current font: ${FONT_OPTIONS[font].label}`;
         }
-    }
-    function getModeLabel(currentMode) {
-        if (currentMode === "dark") {
-            return "Dark";
-        }
-        if (currentMode === "light") {
-            return "Light";
-        }
-        return `Auto (${enabled ? "dark" : "light"})`;
-    }
-    function getModeIcon(currentMode) {
-        if (currentMode === "dark") {
-            return "\u263D";
-        }
-        if (currentMode === "light") {
-            return "\u2600";
-        }
-        return "\u25D0";
     }
     function initializeControls() {
         createAppearanceControls();
@@ -1047,7 +1015,6 @@
         }
         const existingControls = document.getElementById(CONTROLS_ID);
         if (existingControls) {
-            toggleBtn = document.getElementById(TOGGLE_ID);
             settingsBtn = document.getElementById(SETTINGS_BUTTON_ID);
             settingsPanel = document.getElementById(SETTINGS_PANEL_ID);
             modeSelect = document.getElementById(MODE_SELECT_ID);
@@ -1071,10 +1038,6 @@
         settingsBtn.setAttribute("aria-controls", SETTINGS_PANEL_ID);
         settingsBtn.setAttribute("aria-expanded", "false");
         settingsBtn.addEventListener("click", toggleSettingsPanel);
-        toggleBtn = document.createElement("button");
-        toggleBtn.id = TOGGLE_ID;
-        toggleBtn.type = "button";
-        toggleBtn.addEventListener("click", cycleMode);
         settingsPanel = document.createElement("section");
         settingsPanel.id = SETTINGS_PANEL_ID;
         settingsPanel.hidden = true;
@@ -1119,7 +1082,6 @@
         fontStatus.setAttribute("aria-live", "polite");
         settingsPanel.appendChild(fontStatus);
         controls.appendChild(settingsBtn);
-        controls.appendChild(toggleBtn);
         controls.appendChild(settingsPanel);
         document.body.appendChild(controls);
         updateControls();
@@ -1158,36 +1120,13 @@
             fontSelect.focus();
         }
     }
-    function onKeyDown(event) {
+    function onSettingsKeyDown(event) {
         if (event.key === "Escape" && settingsPanel && !settingsPanel.hidden) {
             closeSettingsPanel();
             if (settingsBtn) {
                 settingsBtn.focus();
             }
-            return;
         }
-        if (!event.altKey ||
-            !event.shiftKey ||
-            event.ctrlKey ||
-            event.metaKey ||
-            event.isComposing ||
-            event.code !== "KeyD" ||
-            isEditableTarget(event.target)) {
-            return;
-        }
-        event.preventDefault();
-        cycleMode();
-    }
-    function isEditableTarget(target) {
-        if (!(target instanceof Element)) {
-            return false;
-        }
-        if (target instanceof HTMLInputElement ||
-            target instanceof HTMLTextAreaElement ||
-            target instanceof HTMLSelectElement) {
-            return true;
-        }
-        return Boolean(target.closest("[contenteditable='true'], [contenteditable=''], [role='textbox']"));
     }
     function setupSystemPreferenceListener() {
         try {
@@ -1251,7 +1190,6 @@
             GM_registerMenuCommand("Mode: Light", function () {
                 setMode("light");
             });
-            GM_registerMenuCommand("Cycle Mode (Alt+Shift+D)", cycleMode);
             FONT_NAMES.forEach(function (fontName) {
                 const option = FONT_OPTIONS[fontName];
                 GM_registerMenuCommand(`Font: ${option.label}`, function () {
