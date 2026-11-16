@@ -1,6 +1,6 @@
 # arXiv Dark Mode and Font Preferences
 
-A Tampermonkey userscript that applies a comprehensive dark theme and readable font preferences to arXiv.org.
+A Tampermonkey userscript that gives arXiv.org a full dark theme and a choice of readable fonts.
 
 The project is TypeScript-first: edit `src/arxiv-dark-mode.ts`, then run `npm run build` to generate the installable `dist/arxiv-dark-mode.js` artifact.
 
@@ -10,21 +10,21 @@ The project is TypeScript-first: edit `src/arxiv-dark-mode.ts`, then run `npm ru
 
 ## Features
 
-- Three modes: **Auto** (follows system preference), **Dark**, and **Light**
-- Covers all major arXiv subdomains: `arxiv.org`, `export.arxiv.org`, `info.arxiv.org`, `html.arxiv.org`, `ar5iv.labs.arxiv.org`
+- Three modes: **Auto** (follows the system preference), **Dark**, and **Light**
+- Works on all major arXiv subdomains: `arxiv.org`, `export.arxiv.org`, `info.arxiv.org`, `html.arxiv.org`, `ar5iv.labs.arxiv.org`
 - Persistent `Aa` appearance controls expose theme and font selectors on every page
 - Tampermonkey menu commands for direct mode selection
 - Persistent font choices: site default, system sans-serif, serif, monospace, OpenDyslexic, and OpenDyslexic Mono
-- Cross-tab sync: changing mode in one tab propagates to others instantly
+- Cross-tab sync: changing the mode in one tab updates the others instantly
 - Cross-tab font sync
-- Responds to system dark/light preference changes in real time (Auto mode)
-- Print-safe: reverts to white background when printing
-- No JavaScript dependencies; OpenDyslexic files are pinned HTTPS userscript resources
+- Follows system dark/light preference changes in real time (Auto mode)
+- Print-safe: reverts to a white background when printing
+- No JavaScript dependencies; the OpenDyslexic files are pinned HTTPS userscript resources
 
 ## Installation
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) for your browser.
-2. Open the [built userscript](../../raw/master/dist/arxiv-dark-mode.js) and Tampermonkey will prompt you to install it.
+2. Open the [built userscript](../../raw/master/dist/arxiv-dark-mode.js). Tampermonkey will prompt you to install it.
 
 ## Development
 
